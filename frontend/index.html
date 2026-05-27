@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>To-Do App — FastAPI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f4f5f7;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #1b4d7e;
+      color: white;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 { font-size: 22px; font-weight: 600; }
+    header p  { font-size: 13px; opacity: 0.75; }
+
+    /* ── Stats Bar ── */
+    .stats {
+      display: flex;
+      gap: 12px;
+      padding: 18px 32px;
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      flex: 1; min-width: 110px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 26px; font-weight: 700; color: #1b4d7e; }
+    .stat-card .lbl { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+    /* ── Main layout ── */
+    .container { max-width: 800px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ── Add Todo Form ── */
+    .form-card {
+      background: white;
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .form-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: #374151; }
+    .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    input[type="text"], select, textarea {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #1a1a2e;
+      background: #f9fafb;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus {
+      border-color: #1b4d7e;
+      background: white;
+    }
+    #inp-title { flex: 1; min-width: 200px; }
+    #inp-desc  { width: 100%; resize: vertical; min-height: 60px; }
+    #inp-priority { min-width: 130px; }
+
+    .btn {
+      padding: 9px 20px; border-radius: 8px; border: none;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:hover   { opacity: .87; }
+    .btn:active  { transform: scale(.97); }
+    .btn-primary { background: #1b4d7e; color: white; }
+    .btn-sm      { padding: 5px 12px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; }
+    .btn-done    { background: #dcfce7; color: #166534; }
+    .btn-undo    { background: #fef9c3; color: #854d0e; }
+    .btn-del     { background: #fee2e2; color: #991b1b; }
+
+    /* ── Filters ── */
+    .filters {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
+      align-items: center;
+    }
+    .filters input { flex: 1; min-width: 180px; }
+    .filter-btn {
+      padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      border: 1px solid #d1d5db; background: white; cursor: pointer;
+      color: #374151; transition: all .15s;
+    }
+    .filter-btn:hover, .filter-btn.active { background: #1b4d7e; color: white; border-color: #1b4d7e; }
+
+    /* ── Todo List ── */
+    #todo-list { list-style: none; }
+    .todo-item {
+      background: white;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      transition: opacity .2s;
+    }
+    .todo-item.done { opacity: .55; }
+
+    .todo-check {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid #d1d5db; flex-shrink: 0; margin-top: 2px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .todo-check.checked { background: #1b4d7e; border-color: #1b4d7e; }
+    .todo-check.checked::after { content: '✓'; color: white; font-size: 11px; }
+
+    .todo-body { flex: 1; }
+    .todo-title {
+      font-size: 15px; font-weight: 500; margin-bottom: 3px;
+    }
+    .todo-item.done .todo-title { text-decoration: line-through; color: #9ca3af; }
+    .todo-desc { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+    .todo-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    .priority-badge {
+      font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 10px;
+    }
+    .priority-high   { background: #fee2e2; color: #991b1b; }
+    .priority-medium { background: #fef3c7; color: #92400e; }
+    .priority-low    { background: #dcfce7; color: #166534; }
+
+    .todo-date { font-size: 11px; color: #9ca3af; }
+    .todo-actions { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
+
+    .empty {
+      text-align: center; padding: 40px; color: #9ca3af;
+      font-size: 15px;
+    }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1e293b; color: white;
+      padding: 10px 18px; border-radius: 10px;
+      font-size: 13px; opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>To-Do List</h1>
+    <p>Connected to FastAPI backend at localhost:8000</p>
+  </div>
+</header>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat-card"><div class="num" id="s-total">0</div><div class="lbl">Total</div></div>
+  <div class="stat-card"><div class="num" id="s-pending">0</div><div class="lbl">Pending</div></div>
+  <div class="stat-card"><div class="num" id="s-done">0</div><div class="lbl">Completed</div></div>
+  <div class="stat-card"><div class="num" id="s-high">0</div><div class="lbl">High Priority</div></div>
+</div>
+
+<div class="container">
+
+  <!-- Add Form -->
+  <div class="form-card">
+    <h2>Add New Todo</h2>
+    <div class="form-row">
+      <input type="text" id="inp-title" placeholder="What needs to be done?" />
+      <select id="inp-priority">
+        <option value="low">Low priority</option>
+        <option value="medium" selected>Medium priority</option>
+        <option value="high">High priority</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <textarea id="inp-desc" placeholder="Description (optional)"></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="createTodo()">Add Todo</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <input type="text" id="search-inp" placeholder="Search todos..." oninput="loadTodos()" />
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('pending', this)">Pending</button>
+    <button class="filter-btn" onclick="setFilter('done', this)">Completed</button>
+    <button class="filter-btn" onclick="setFilter('high', this)">High Priority</button>
+  </div>
+
+  <!-- List -->
+  <ul id="todo-list"><li class="empty">Loading...</li></ul>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let currentFilter = 'all';
+
+  // ── Helpers ────────────────────────────────────────
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function formatDate(iso) {
+    return new Date(iso).toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    });
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadTodos();
+  }
+
+  // ── Build query string based on current filter ─────
+  function buildQuery() {
+    const search = document.getElementById('search-inp').value.trim();
+    const params = new URLSearchParams();
+    if (currentFilter === 'done')    params.append('completed', 'true');
+    if (currentFilter === 'pending') params.append('completed', 'false');
+    if (currentFilter === 'high')    params.append('priority',  'high');
+    if (search)                      params.append('search', search);
+    return params.toString() ? '?' + params.toString() : '';
+  }
+
+  // ── GET /todos ─────────────────────────────────────
+  async function loadTodos() {
+    const res  = await fetch(API + '/todos' + buildQuery());
+    const data = await res.json();
+    const ul   = document.getElementById('todo-list');
+
+    if (!data.length) {
+      ul.innerHTML = '<li class="empty">No todos found</li>';
+      return;
+    }
+
+    ul.innerHTML = data.map(t => `
+      <li class="todo-item ${t.completed ? 'done' : ''}" id="item-${t.id}">
+        <div class="todo-check ${t.completed ? 'checked' : ''}"
+             onclick="toggleDone(${t.id}, ${t.completed})"></div>
+        <div class="todo-body">
+          <div class="todo-title">${t.title}</div>
+          ${t.desc ? `<div class="todo-desc">${t.desc}</div>` : ''}
+          <div class="todo-meta">
+            <span class="priority-badge priority-${t.priority}">${t.priority}</span>
+            <span class="todo-date">${formatDate(t.created_at)}</span>
+          </div>
+        </div>
+        <div class="todo-actions">
+          <button class="btn-sm ${t.completed ? 'btn-undo' : 'btn-done'}"
+                  onclick="toggleDone(${t.id}, ${t.completed})">
+            ${t.completed ? 'Undo' : 'Done'}
+          </button>
+          <button class="btn-sm btn-del" onclick="deleteTodo(${t.id})">Delete</button>
+        </div>
+      </li>
+    `).join('');
+
+    loadStats();
+  }
+
+  // ── GET /stats ─────────────────────────────────────
+  async function loadStats() {
+    const res  = await fetch(API + '/stats');
+    const data = await res.json();
+    document.getElementById('s-total').textContent   = data.total;
+    document.getElementById('s-pending').textContent = data.pending;
+    document.getElementById('s-done').textContent    = data.completed;
+    document.getElementById('s-high').textContent    = data.high_priority;
+  }
+
+  // ── POST /todos ────────────────────────────────────
+  async function createTodo() {
+    const title = document.getElementById('inp-title').value.trim();
+    if (!title) { toast('Please enter a title!'); return; }
+
+    const body = {
+      title,
+      desc:     document.getElementById('inp-desc').value.trim(),
+      priority: document.getElementById('inp-priority').value
+    };
+
+    const res = await fetch(API + '/todos', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      document.getElementById('inp-title').value = '';
+      document.getElementById('inp-desc').value  = '';
+      toast('Todo added!');
+      loadTodos();
+    }
+  }
+
+  // ── PATCH /todos/{id}  — toggle completed ──────────
+  async function toggleDone(id, currentState) {
+    await fetch(`${API}/todos/${id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ completed: !currentState })
+    });
+    loadTodos();
+  }
+
+  // ── DELETE /todos/{id} ─────────────────────────────
+  async function deleteTodo(id) {
+    if (!confirm('Delete this todo?')) return;
+    await fetch(`${API}/todos/${id}`, { method: 'DELETE' });
+    toast('Deleted!');
+    loadTodos();
+  }
+
+  // ── Enter key to add todo ──────────────────────────
+  document.getElementById('inp-title')
+    .addEventListener('keypress', e => { if (e.key === 'Enter') createTodo(); });
+
+  // ── Initial load ───────────────────────────────────
+  loadTodos();
+</script>
+</body>
+</html>
